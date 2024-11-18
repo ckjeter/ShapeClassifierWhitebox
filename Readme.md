@@ -17,14 +17,8 @@ The ACTS tool can be accessed in the ACTS folder.
 
 # Whitebox Testing
 
-Derive test cases from the source code of the `evaluateGuess` method using whitebox testing. Using branch coverage as a guide, generate
-test cases that achieve the highest possible coverage numbers. 
-
-1. Study the code and create a JUnit testcase to traverse a branch.
-2. Execute that testcase under a code coverage tool and observe the branch coverage.
-3. Repeat this process selecting a different branch to exercise until you run out of time.
+![Whitebox Testing Result](WhiteboxTestingResult.png)
 
 # Building and Testing with Maven
 
 `mvn clean test`
-

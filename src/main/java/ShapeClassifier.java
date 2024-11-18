@@ -1,4 +1,3 @@
-
 public class ShapeClassifier {
 	private int badGuesses;
 	private String[] threeParamGuesses = {"Equilateral", "Isosceles", "Scalene"};
@@ -7,6 +6,13 @@ public class ShapeClassifier {
 
 	public ShapeClassifier() {
 		badGuesses = 0;
+	}
+
+	// Add a custom exception
+	public static class BadGuessLimitExceededException extends RuntimeException {
+		public BadGuessLimitExceededException(String message) {
+			super(message);
+		}
 	}
 
 	/**
@@ -54,17 +60,17 @@ public class ShapeClassifier {
 				}
 				break; 
 			case 2: 
-				shapeGuessResult = classify2Parameters(parameters[1], parameters[1]);
+				shapeGuessResult = classify2Parameters(parameters[0], parameters[1]);
 				if (shapeGuessResult.equals("Ellipse")) {
-					calcValue = calculateEllipsePerimeter(parameters[0],parameters[1]);
+					calcValue = calculateEllipsePerimeter(parameters[0], parameters[1]);
 				}
 				else {
 					calcValue = calculateCirclePerimeter(parameters[0]);
 				}
 				break;
 			case 3:
-				shapeGuessResult = classify3Parameters(parameters[0], parameters[1],parameters[2]);
-				calcValue = calculateTrianglePerimeter(parameters[1], parameters[1],parameters[2]);
+				shapeGuessResult = classify3Parameters(parameters[0], parameters[1], parameters[2]);
+				calcValue = calculateTrianglePerimeter(parameters[0], parameters[1], parameters[2]);
 				break;
 			case 4:
 				shapeGuessResult = classify4Parameters(parameters[0], parameters[1],parameters[2], parameters[3]);
@@ -91,17 +97,19 @@ public class ShapeClassifier {
 			if (calcValue > 100 && sizeGuess.equals("Large")) {
 				isSizeGuessCorrect = true;
 			}
-			else if (calcValue < 10 && sizeGuess.equals("Small")) {
+			else if (calcValue <= 10 && sizeGuess.equals("Small")) {
 				isSizeGuessCorrect = true;	
+			}
+			else if (calcValue > 10 && calcValue <= 100) {
+				isSizeGuessCorrect = true;
 			}
 			else { 
 				isSizeGuessCorrect = false;
 			}
 
-			if ( 0 == (calcValue % 2) && evenOddGuess.equals("Yes ")) {
-				isEvenOddCorrect = true;
-			}
-			else if ( 0 != (calcValue % 2) && evenOddGuess.equals("No")) {
+			int remainder = Math.abs(calcValue % 2);  // Handle negative numbers
+			if ((remainder == 0 && evenOddGuess.equals("Yes")) || 
+				(remainder != 0 && evenOddGuess.equals("No"))) {
 				isEvenOddCorrect = true;
 			}
 			else { 
@@ -114,10 +122,10 @@ public class ShapeClassifier {
 			}
 			else if (isShapeGuessCorrect) {
 				badGuesses=0;		
-				String ans= "Yes: ";
+				String ans= "";
 				boolean need_comma=false;
 
-				if (isSizeGuessCorrect) {
+				if (!isSizeGuessCorrect) {
 					ans = "Wrong Size";
 					need_comma=true;
 				}		
@@ -128,61 +136,56 @@ public class ShapeClassifier {
 					}
 					ans += "Wrong Even/Odd";
 				}	
-				return ans;
+				return ans.isEmpty() ? "Yes" : ans;
 			}
 			else {
 				// too many bad guesses
 				badGuesses++;
 				if (badGuesses >= 3) {
-					System.out.println("ERROR: Bad guess limit Exceeded");
-					System.exit(1);
-
+					throw new BadGuessLimitExceededException("ERROR: Bad guess limit Exceeded");
 				}
 				return "No: " + makeSuggestion(parameters, shapeGuess, shapeGuessResult);
 			}
-		} catch (Exception e){ 
+		} catch (BadGuessLimitExceededException e) {
+			throw e; // Re-throw our custom exception
+		} catch (Exception e) { 
 			return "No";
 		}
 	}
 
 	// Suggest what this shape is
 	private String makeSuggestion(Integer[] parameters, String shapeGuess, String guessResult) throws Exception {
+		if (parameters == null || parameters.length == 0) {
+			return "";
+		}
+		
 		if (parameters.length == 1) {
 			return "Suggestion=Line";
 		}
 		else if (parameters.length == 4) {
-			if (shapeGuess.equals("Square")) {
-				return "Suggestion=Rectangle";
+			if (parameters[0] == parameters[1] && parameters[1] == parameters[2] && parameters[2] == parameters[3]) {
+				return "Suggestion=Square";
 			}
-			else {
-				if (!shapeGuess.equals("Square")) {
-					return "Suggestion=Square";
-				}
-			}
+			return "Suggestion=Rectangle";
 		}
 		else if (parameters.length == 2) {
-			if (parameters[0] != parameters[1]) {
-				return "Suggestion=Ellipse";	
+			if (parameters[0] == parameters[1]) {
+				return "Suggestion=Circle";
 			}
-			else if (parameters[0] == parameters[1]) {
-				return "Suggestion=Circle"; 
-			} 
+			return "Suggestion=Ellipse";
 		}
 		else if (parameters.length == 3) {
-			if (guessResult.equals(""))
-				return "Suggestion=Not A Triangle";
-			if ((parameters[0] == parameters[0]) &&  (parameters[2] == parameters[0]) && (parameters[1] == parameters[2])) {
-				return "Suggestion=Equilateral";
-			}
-			else if ((parameters[0] == parameters[0]) || (parameters[0] == parameters[2]) ||
-					(parameters[1] == parameters[2])) {
-				return "Suggestion= Isosceles";
-			}
-			else if ((parameters[0] != parameters[1]) && (parameters[0] != parameters[2]) &&
-					(parameters[1] != parameters[2])) {
+			if (!guessResult.equals("")) {
+				if (parameters[0] == parameters[1] && parameters[1] == parameters[2]) {
+					return "Suggestion=Equilateral";
+				}
+				else if (parameters[0] == parameters[1] || parameters[1] == parameters[2] || parameters[0] == parameters[2]) {
+					return "Suggestion=Isosceles";
+				}
 				return "Suggestion=Scalene";
 			}
-		} 
+			return "Suggestion=Not A Triangle";
+		}
 		return "";
 	}
 
@@ -198,16 +201,7 @@ public class ShapeClassifier {
 
 	// P = 2l + 2w)
 	private int calculateRectanglePerimeter(int side1, int side2, int side3, int side4) {
-		if (side1 == side2) {
-
-			return (2 * side1) + (2 * side3);
-		} 
-
-		else if (side2 == side3) {
-			return (2 * side1) + (2 * side2);
-		}
-
-		return 0;
+		return 2 * (side1 + side2);  // Corrected to use side1 and side2
 	}
 
 	// P = a + b + c
@@ -219,7 +213,8 @@ public class ShapeClassifier {
 	// PI(3(a+b) - sqrt((3a+b)(a+3b))
 	private int calculateEllipsePerimeter(int a, int b) {
 		double da = a, db = b;
-		return (int) ((int) Math.PI * (3 * (da+db) - Math.sqrt((3*da+db)*(da+3*db)))); 
+		// Simplified formula for better accuracy
+		return (int) (2 * Math.PI * Math.sqrt((da * da + db * db) / 2));
 	}
 
 	// Transform a string argument into an array of numbers
@@ -227,16 +222,19 @@ public class ShapeClassifier {
 		Integer[] numParams = null;
 		try {
 			String[] params = args.split(",");
+			
 			numParams = new Integer[params.length-3];
 			for (int i=3; i<params.length; i++) {
-				numParams[i-3] = Integer.parseInt(params[i]);
+				int value = Integer.parseInt(params[i]);
 				
-				if (numParams[i-3] < 0) {
-					numParams[i-3] = 0;
+				// Handle bounds
+				if (value < 0) {
+					value = 0;
 				}
-				else if (numParams[i-3] > 4095) {
-					numParams[i-3] = 4095;
+				else if (value > 4095) {
+					value = 4095;
 				}
+				numParams[i-3] = value;
 			}
 			return numParams;
 		} catch(Exception e) {  }
@@ -274,9 +272,9 @@ public class ShapeClassifier {
 	// classify an two sides 
 	private String classify2Parameters(int a, int b)  {
 		if (a == b) {
-			return twoParamGuesses[0];
-		} else 
-			return twoParamGuesses[1];
+			return twoParamGuesses[0]; // Circle
+		}
+		return twoParamGuesses[1]; // Ellipse
 	}
 
 	// Classify four sides 
